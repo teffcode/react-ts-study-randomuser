@@ -1,0 +1,15 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  width: 100%;
+}
+
+.row-color tr:nth-child(even) {
+  background-color: #F8F6F4;
+}
+
+.row-color tr:nth-child(odd) {
+  background-color: #E3F4F4;
+}
