@@ -4,16 +4,16 @@ Study practice based on [this video](https://www.youtube.com/watch?v=mNJOWXc83Y4
 
 ## 🩵 Tasks:
 
-1. [x] Fetch 100 rows of data using the API.
-2. [x] Display the data in a table format, similar to the example.
-3. [x] Provide the option to color rows as shown in the example.
-4. [x] Allow the data to be sorted by country as demonstrated in the example.
-5. [] Enable the ability to delete a row as shown in the example.
-6. [] Implement a feature that allows the user to restore the initial state, meaning that all deleted rows will be recovered.
-7. [] Handle any potential errors that may occur.
-8. [] Implement a feature that allows the user to filter the data by country.
-9. [] Avoid sorting users again the data when the user is changing filter by country.
-10. [] Sort by clicking on the column header.
+[x] 1. Fetch 100 rows of data using the API.
+[x] 2. Display the data in a table format, similar to the example.
+[x] 3. Provide the option to color rows as shown in the example.
+[x] 4. Allow the data to be sorted by country as demonstrated in the example.
+[x] 5. Enable the ability to delete a row as shown in the example.
+[x] 6. Implement a feature that allows the user to restore the initial state, meaning that all deleted rows will be recovered.
+[x] 7. Handle any potential errors that may occur.
+[x] 8. Implement a feature that allows the user to filter the data by country.
+[x] 9. Avoid sorting users again the data when the user is changing filter by country.
+[] 10. Sort by clicking on the column header.
 
 ## 📚 Documentation:
 
@@ -234,7 +234,180 @@ const sortedUsers = sortByCountry
 ```
 
 ___
-### 5. ✨ 
+### 5. ✨ Enable the ability to delete a row as shown in the example.
+___
+
+Don't delete users by index like:
+
+```
+const handleDelete = (index: number) => {
+  const filteredUsers = users.filter((user, userIndex) => userIndex !== index)
+  setUsers(filteredUsers)
+}
+```
+
+Instead of that, use user.email (that is unic) to delete users without problems like:
+
+```
+const handleDelete = (email: string) => {
+  const filteredUsers = users.filter(user => user.email !== email)
+  setUsers(filteredUsers)
+}
+```
+
+Remember add deleteUser prop as interface:
+
+```
+interface Props {
+  users: User[]
+  color: boolean
+  deleteUser: (email: string) => void
+}
+```
+
+___
+### 6. ✨ Implement a feature that allows the user to restore the initial state, meaning that all deleted rows will be recovered.
+___
+
+Don't use a state to save the original users because it'll render the UI again.
+
+Instead of using a new state, use `userRef()` because it allows to share data between renders (that means, if the state changes, the useRef value doesn't) but it doesn't render the UI again.
+
+Other considaration is that if we request to the API again, maybe, we could have other different data than the initial. Also, the task says "restore" not "request" again.
+
+```
+const originalUsers = useRef<User[]>([])
+
+const handleRestartState = () => {
+  setUsers(originalUsers.current)
+}
+
+useEffect(() => {
+  fetch('https://randomuser.me/api?results=100')
+    .then(async res => await res.json())
+    .then(res => {
+      setUsers(res.results)
+      originalUsers.current = res.results <-------------- HERE
+    })
+    .catch(err => {
+      console.log(err)
+    })
+}, [])
+
+```
+
+___
+### 7. ✨ Handle any potential errors that may occur.
+___
+
+* Changing index by user.email.
+
+___
+### 8. ✨ Implement a feature that allows the user to filter the data by country.
+___
+
+Don't create a new state to save the filtered users. Instead of that, replace the `users` value in sortedUsers function by `filteredUsers` where `filteredUsers` whould be a function with the users filtered by user typing.
+
+```
+const [search, setSearch] = useState<string | null>(null)
+
+const filteredUsers = search !== null && search.length > 0
+  ? [...users].filter(user => user.location.country.toLowerCase().includes(search.toLowerCase()))
+  : users
+
+const sortedUsers = sortByCountry
+  ? filteredUsers.sort((a, b) => a.location.country.localeCompare(b.location.country))
+  : filteredUsers
+
+<input placeholder='Type a country' onChange={e => { setSearch(e.target.value) }} />
+```
+
+___
+### 9. ✨ Avoid sorting users again the data when the user is changing filter by country.
+___
+
+This means, don't sort users if is not necessary.
+
+To see the behavior of sortedUsers, do the following:
+
+BEFORE:
+```
+const sortedUsers = sortByCountry
+  ? filteredUsers.sort((a, b) => a.location.country.localeCompare(b.location.country))
+  : filteredUsers
+
+<UsersList users={sortedUsers} color={color} deleteUser={handleDelete} /> 👈🏼 It does not change.
+```
+
+AFTER:
+```
+const sortUsers = (users: User[]) => {
+  console.log('SORTING USERS')
+  return sortByCountry
+    ? users.sort((a, b) => a.location.country.localeCompare(b.location.country))
+    : users
+}
+
+const sortedUsers = sortUsers(filteredUsers)
+
+<UsersList users={sortedUsers} color={color} deleteUser={handleDelete} /> 👈🏼 It does not change.
+```
+
+With this, we can see the `console.log` appears when you click on colored rows, unsort by country, etc. So, the idea is avoid sorting users when it is not necessary. To do that, use `userMemo()`.
+
+BEFORE:
+```
+const sortUsers = (users: User[]) => {
+  console.log('SORTING USERS')
+  return sortByCountry
+    ? users.sort((a, b) => a.location.country.localeCompare(b.location.country))
+    : users
+}
+
+const sortedUsers = sortUsers(filteredUsers)
+
+<UsersList users={sortedUsers} color={color} deleteUser={handleDelete} />
+```
+
+AFTER:
+```
+const sortedUsers = useMemo(() => {
+  console.log('SORTING USERS')
+
+  return sortByCountry
+    ? filteredUsers.sort((a, b) => a.location.country.localeCompare(b.location.country))
+    : filteredUsers
+}, [filteredUsers, sortByCountry])
+
+<UsersList users={sortedUsers} color={color} deleteUser={handleDelete} /> 👈🏼 It does not change.
+```
+> The console.log should appear just when click on 'Sort by country' and when type something.
+> The console.log should not appear just when click on 'Color rows'
+
+The same with filteredUsers like:
+
+BEFORE:
+```
+const filteredUsers = search !== null && search.length > 0
+  ? [...users].filter(user => user.location.country.toLowerCase().includes(search.toLowerCase()))
+  : users
+```
+
+AFTER:
+```
+const filteredUsers = useMemo(() => {
+  console.log('FILTERING USERS BY COUNTRY')
+
+  return search !== null && search.length > 0
+    ? [...users].filter(user => user.location.country.toLowerCase().includes(search.toLowerCase()))
+    : users
+}, [users, search])
+```
+> The console.log should appear just when type something.
+> The console.log should not appear just when click on 'Color rows' and 'Sort by country'
+
+___
+### 10. ✨ Sort by clicking on the column header.
 ___
 
 ```
